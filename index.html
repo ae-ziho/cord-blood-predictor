@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>제대혈 품질 예측 플랫폼 — 박지호 (2176160)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f7f4;color:#1a1a18;min-height:100vh;padding:2rem 1rem}
+.container{max-width:700px;margin:0 auto}
+.top-bar{font-size:13px;color:#5f5e5a;margin-bottom:2rem}
+.badge{display:inline-block;font-size:11px;padding:3px 10px;border-radius:8px;background:#e1f5ee;color:#0f6e56;font-weight:500;margin-bottom:8px}
+h1{font-size:22px;font-weight:500;color:#1a1a18;margin-bottom:4px}
+.subtitle{font-size:14px;color:#5f5e5a;margin-bottom:1.5rem;line-height:1.6}
+.card{background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.12);padding:1.5rem;margin-bottom:1rem}
+.card-title{font-size:14px;font-weight:500;color:#1a1a18;margin-bottom:1rem;padding-bottom:8px;border-bottom:0.5px solid rgba(0,0,0,0.08)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:1.25rem}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:13px;color:#5f5e5a;font-weight:500}
+.field .hint{font-size:11px;color:#888780}
+.field input,.field select{width:100%;padding:8px 10px;border:0.5px solid rgba(0,0,0,0.2);border-radius:8px;background:#fff;color:#1a1a18;font-size:14px;font-family:inherit}
+.field input:focus,.field select:focus{outline:2px solid #1D9E75;outline-offset:1px;border-color:transparent}
+.btn{width:100%;padding:11px;border:none;border-radius:8px;background:#1D9E75;color:#fff;font-size:15px;font-family:inherit;font-weight:500;cursor:pointer;transition:background 0.15s}
+.btn:hover{background:#0f6e56}
+.btn:active{transform:scale(0.99)}
+.result{margin-top:1rem;display:none}
+.result-header{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem}
+.result-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.result-label{font-size:17px;font-weight:500;color:#1a1a18}
+.result-sub{font-size:13px;color:#5f5e5a;margin-top:2px}
+.prob-bar-wrap{margin-bottom:1.25rem}
+.prob-bar-label{display:flex;justify-content:space-between;font-size:13px;color:#5f5e5a;margin-bottom:6px}
+.prob-bar-bg{height:10px;background:#f1efe8;border-radius:5px;overflow:hidden}
+.prob-bar-fill{height:100%;border-radius:5px;transition:width 0.7s ease}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1.25rem}
+.metric-card{background:#f8f7f4;border-radius:8px;padding:10px 12px}
+.m-label{font-size:11px;color:#888780;margin-bottom:2px}
+.m-val{font-size:17px;font-weight:500;color:#1a1a18}
+.shap-section{padding-top:1rem;border-top:0.5px solid rgba(0,0,0,0.08)}
+.shap-title{font-size:12px;color:#888780;margin-bottom:10px}
+.shap-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.shap-name{font-size:12px;color:#5f5e5a;width:120px;flex-shrink:0}
+.shap-bar-wrap{flex:1;height:6px;background:#f1efe8;border-radius:3px;overflow:hidden}
+.shap-bar{height:100%;border-radius:3px}
+.shap-dir{font-size:12px;width:36px;text-align:right;flex-shrink:0}
+.disclaimer{margin-top:1.25rem;padding:10px 12px;background:#f8f7f4;border-radius:8px;font-size:11px;color:#888780;line-height:1.6}
+.footer{text-align:center;font-size:12px;color:#b4b2a9;margin-top:2rem;padding-bottom:1rem}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="top-bar">도전학기제 20기 · 박지호 (2176160) · 이화여자대학교</div>
+
+  <div class="badge">Demo · XGBoost · AUROC 0.765 · n=37,645</div>
+  <h1>제대혈 품질 예측 플랫폼</h1>
+  <p class="subtitle">산모·신생아 정보(8개 변수)를 입력하면 제대혈 적합 가능성을 예측합니다.<br>서울특별시 보라매병원 제대혈은행 데이터(2006–2025) 기반 XGBoost 모델 (Model 1 v3.1).</p>
+
+  <div class="card">
+    <div class="card-title"><i class="ti ti-user" style="font-size:15px;vertical-align:-2px;margin-right:6px"></i>산모 정보</div>
+    <div class="grid">
+      <div class="field">
+        <label>산모 나이 (세)</label>
+        <input type="number" id="age" min="19" max="45" value="32">
+        <span class="hint">범위: 19–45세</span>
+      </div>
+      <div class="field">
+        <label>분만 유형</label>
+        <select id="delivery">
+          <option value="0">자연분만</option>
+          <option value="1">제왕절개</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>부모 인종</label>
+        <select id="korean">
+          <option value="1">부모 모두 한국인</option>
+          <option value="0">그 외</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="ti ti-heart" style="font-size:15px;vertical-align:-2px;margin-right:6px"></i>신생아 및 채취 정보</div>
+    <div class="grid">
+      <div class="field">
+        <label>재태연령 — 주</label>
+        <input type="number" id="ga_week" min="20" max="44" value="39">
+        <span class="hint">20–44주</span>
+      </div>
+      <div class="field">
+        <label>재태연령 — 일</label>
+        <input type="number" id="ga_day" min="0" max="6" value="3">
+        <span class="hint">추가 일수 (0–6일)</span>
+      </div>
+      <div class="field">
+        <label>출생체중 (kg)</label>
+        <input type="number" id="weight" min="0.5" max="6" step="0.1" value="3.3">
+      </div>
+      <div class="field">
+        <label>CBU Volume (mL)</label>
+        <input type="number" id="cbu" min="10" max="300" value="100">
+        <span class="hint">압도적 예측 변수</span>
+      </div>
+      <div class="field">
+        <label>아기 성별</label>
+        <select id="gender">
+          <option value="0">남자</option>
+          <option value="1">여자</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn" onclick="predict()">예측하기</button>
+
+  <div class="result card" id="result">
+    <div class="result-header">
+      <div class="result-icon" id="r-icon"></div>
+      <div>
+        <div class="result-label" id="r-label"></div>
+        <div class="result-sub" id="r-sub"></div>
+      </div>
+    </div>
+
+    <div class="prob-bar-wrap">
+      <div class="prob-bar-label">
+        <span>적합(저장+이식) 가능성</span>
+        <span id="r-pct"></span>
+      </div>
+      <div class="prob-bar-bg">
+        <div class="prob-bar-fill" id="r-bar"></div>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric-card">
+        <div class="m-label">예측 확률</div>
+        <div class="m-val" id="m-prob"></div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">최고 모델 AUROC</div>
+        <div class="m-val">0.765</div>
+      </div>
+      <div class="metric-card">
+        <div class="m-label">분석 데이터</div>
+        <div class="m-val">37,645</div>
+      </div>
+    </div>
+
+    <div class="shap-section">
+      <div class="shap-title">변수 기여도 — LR 표준화 회귀계수 기반 (Model 1 v3.1)</div>
+      <div id="shap-bars"></div>
+    </div>
+
+    <div class="disclaimer">
+      ※ 본 예측은 연구 목적의 데모이며 임상적 판단을 대체하지 않습니다.<br>
+      Outcome 정의: (저장+이식)=적합, (부적합+접수거절)=부적합. 접수거절 35,428건은 산부인과 변수 결측으로 분석 미포함.<br>
+      실제 저장 여부는 제대혈은행 접수 후 혈액학적 검사(TNC, CD34⁺ 등)를 통해 최종 판정됩니다.
+    </div>
+  </div>
+
+
+</div>
+
+<script>
+// LR 표준화 회귀계수 (Model 1 v3.1 결과 요약 기반)
+// CB_volume +0.94, delivery_제왕 -0.27, GA_weeks +0.24,
+// gender_여자 +0.16, birth_weight +0.12, parents_korean -0.09,
+// maternal_age +0.06, hospital_freq +0.02
+const COEF = {
+  CB_volume: 0.94,
+  delivery_제왕: -0.27,
+  GA_weeks: 0.24,
+  gender_여자: 0.16,
+  birth_weight: 0.12,
+  parents_korean: -0.09,
+  maternal_age: 0.06,
+};
+
+// 변수별 평균·표준편차 (분석 모집단 추정값)
+const STATS = {
+  CB_volume:    {mean: 90,  std: 35},
+  GA_weeks:     {mean: 38.5, std: 1.8},
+  birth_weight: {mean: 3.2,  std: 0.45},
+  maternal_age: {mean: 32,   std: 4},
+};
+
+function standardize(val, key) {
+  return (val - STATS[key].mean) / STATS[key].std;
+}
+
+function predict(){
+  const age      = parseFloat(document.getElementById('age').value) || 32;
+  const delivery = parseInt(document.getElementById('delivery').value);
+  const korean   = parseInt(document.getElementById('korean').value);
+  const ga_week  = parseFloat(document.getElementById('ga_week').value) || 39;
+  const ga_day   = parseFloat(document.getElementById('ga_day').value) || 0;
+  const weight   = parseFloat(document.getElementById('weight').value) || 3.3;
+  const cbu      = parseFloat(document.getElementById('cbu').value) || 100;
+  const gender   = parseInt(document.getElementById('gender').value);
+
+  const ga_total = ga_week + ga_day / 7;
+
+  // 표준화 후 선형 결합 (절편 추정: 클래스 균형 ~52.6% 적합 → logit(0.526)≈0.104)
+  let z = 0.10;
+  z += COEF.CB_volume    * standardize(cbu, 'CB_volume');
+  z += COEF.GA_weeks     * standardize(ga_total, 'GA_weeks');
+  z += COEF.birth_weight * standardize(weight, 'birth_weight');
+  z += COEF.maternal_age * standardize(age, 'maternal_age');
+  z += COEF.delivery_제왕 * delivery;
+  z += COEF.gender_여자   * gender;
+  z += COEF.parents_korean * korean;
+
+  const score = 1 / (1 + Math.exp(-z));
+  const pct   = Math.round(score * 100);
+  const isFit = score >= 0.468; // Youden cutoff
+
+  const res = document.getElementById('result');
+  res.style.display = 'block';
+
+  const icon = document.getElementById('r-icon');
+  icon.style.background = isFit ? '#e1f5ee' : '#fcebeb';
+  icon.innerHTML = isFit
+    ? '<i class="ti ti-check" style="color:#0f6e56;font-size:20px"></i>'
+    : '<i class="ti ti-x" style="color:#a32d2d;font-size:20px"></i>';
+
+  document.getElementById('r-label').textContent = isFit ? '적합 (저장 가능)' : '부적합 가능성';
+  document.getElementById('r-sub').textContent = isFit
+    ? '제대혈이 보관·이식 기준을 충족할 가능성이 높습니다'
+    : '부적합 판정 가능성 — 접수 후 정밀 검사 권장';
+  document.getElementById('r-pct').textContent = pct + '%';
+  document.getElementById('m-prob').textContent = pct + '%';
+
+  const bar = document.getElementById('r-bar');
+  bar.style.width = pct + '%';
+  bar.style.background = isFit ? '#1D9E75' : (score > 0.35 ? '#EF9F27' : '#E24B4A');
+
+  // 변수 기여도 시각화 (실제 입력값 기반 기여량)
+  const contribs = [
+    {name: 'CBU Volume',    val: COEF.CB_volume    * standardize(cbu, 'CB_volume'),    raw: cbu + ' mL'},
+    {name: '재태연령',       val: COEF.GA_weeks     * standardize(ga_total, 'GA_weeks'), raw: ga_week + '주 ' + ga_day + '일'},
+    {name: '출생체중',       val: COEF.birth_weight * standardize(weight, 'birth_weight'), raw: weight + ' kg'},
+    {name: '분만유형',       val: COEF.delivery_제왕 * delivery,                          raw: delivery ? '제왕절개' : '자연분만'},
+    {name: '아기 성별',      val: COEF.gender_여자   * gender,                            raw: gender ? '여자' : '남자'},
+    {name: '부모 인종',      val: COEF.parents_korean * korean,                           raw: korean ? '한국인' : '그 외'},
+    {name: '산모 나이',      val: COEF.maternal_age * standardize(age, 'maternal_age'),   raw: age + '세'},
+  ].sort((a,b) => Math.abs(b.val) - Math.abs(a.val));
+
+  const maxAbs = Math.max(...contribs.map(d => Math.abs(d.val)), 0.01);
+  document.getElementById('shap-bars').innerHTML = contribs.map(d => {
+    const w     = Math.round(Math.abs(d.val) / maxAbs * 100);
+    const pos   = d.val >= 0;
+    const color = pos ? '#1D9E75' : '#E24B4A';
+    const dir   = pos ? '▲' : '▼';
+    const dclr  = pos ? '#0f6e56' : '#a32d2d';
+    return `<div class="shap-row">
+      <span class="shap-name">${d.name} <span style="color:#b4b2a9;font-size:10px">(${d.raw})</span></span>
+      <div class="shap-bar-wrap"><div class="shap-bar" style="width:${w}%;background:${color}"></div></div>
+      <span class="shap-dir" style="color:${dclr}">${dir}</span>
+    </div>`;
+  }).join('');
+
+  res.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+</script>
+</body>
+</html>
